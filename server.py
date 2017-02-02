@@ -4,7 +4,9 @@ import time
 
 connection = []
 address = []
+flag_client_alive = []
 
+#----------------------------------------------------------------------------------
 def Accept_Connections():
 	print "I am inside the Accept_Connections Thread!"
 	s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -13,35 +15,66 @@ def Accept_Connections():
 	while True:
 		s.listen(1)
 
-		(conn, add) = s.accept()
+		(conn, addr) = s.accept()
 		connection.append(conn)		
-		address.append(add)
+		address.append(addr[0])
+		flag_client_alive.append(0)
 
 		print "I am connected to ", len(connection), " clients!" 
 		print "New Connected address:", address[-1]
 
-		thread.start_new_thread(Connection,(conn, add))
+		thread.start_new_thread(Receive_Messages_From_Single_Client, (conn, addr[0]))
+		thread.start_new_thread(Watchdog_Client_Alive, (conn, addr[0]))
 
+#----------------------------------------------------------------------------------
+def Watchdog_Client_Alive(conn, addr):
+	while True:
+		try:
+			client_index = address.index(addr)
+			conn.send("[Lemur] AYA?")
+		except:
+			print "Client ", addr, " is dead! (Software crash 2)" 
+			break
 
-def Connection(conn, add):
-	print "I am in the thread of the connection to address ", add
+		time.sleep(2)
+
+		if flag_client_alive[client_index] == 1:
+			print "Client ", addr, " is alive!"
+		else:
+			print "Client ", addr, " is dead! (Losing Network or Software crash)"
+			break
+
+		flag_client_alive[client_index] = 0
+
+#----------------------------------------------------------------------------------
+def Receive_Messages_From_Single_Client(conn, addr):
+	global flag_client_alive
 
 	while True:
+		client_index = address.index(addr)
 		data = conn.recv(100)
 
 		if not data:
-			print "Client ", add, "died :("
+			print "Client ", addr, "is dead! (Software crash)"
 
-			connection.pop(address.index(add))
-			address.pop(address.index(add))
+			flag_client_alive[client_index] = 0
 
-			print "I am connected to ", len(connection), " clients!" 
+			connection.pop(client_index)
+			address.pop(client_index)
+
+			print "I am now connected to ", len(connection), " clients!" 
 
 			break
-		print "Data received from ", add, ": ", data
+
+		elif data == "[Lemur] IAA":
+			flag_client_alive[client_index] = 1
+			#print addr[0], "said IAA"
+
+		else:
+			print "Data received from ", addr, ": ", data
 
 	conn.close()
 
-
+#----------------------------------------------------------------------------------
 thread.start_new_thread(Accept_Connections,())
 time.sleep(100)
