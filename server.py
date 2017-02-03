@@ -1,3 +1,4 @@
+import threading
 import thread
 import socket
 import time
@@ -5,6 +6,8 @@ import time
 connection = []
 address = []
 flag_client_alive = []
+
+client_index_lock = threading.Lock()
 
 #----------------------------------------------------------------------------------
 def Accept_Connections():
@@ -37,18 +40,24 @@ def Watchdog_Client_Alive(conn, addr):
 
 		time.sleep(2)
 
+		client_index_lock.acquire()
 		client_index = address.index(addr) 
 		if flag_client_alive[client_index] == 1:
 			print "Client ", addr, " is alive!"
+			flag_client_alive[client_index] = 0
+
+			client_index_lock.release()
 		else:
 			print "Client ", addr, " is dead! (Losing Network or Software crash)"
 			connection.pop(client_index)
 			address.pop(client_index)
 			flag_client_alive.pop(client_index)
-			print "I am now connected to ", len(connection), " clients!" 				
+			print "I am now connected to ", len(connection), " clients!" 			
+			client_index_lock.release()	
 			break
 
-		flag_client_alive[client_index] = 0
+		#flag_client_alive[client_index] = 0
+
 
 #----------------------------------------------------------------------------------
 def Receive_Messages_From_Single_Client(conn, addr):
@@ -56,12 +65,15 @@ def Receive_Messages_From_Single_Client(conn, addr):
 
 	while True:
 		data = conn.recv(100)
+
+		client_index_lock.acquire()
 		client_index = address.index(addr)
 
 		if not data:
 			print "Client ", addr, "is dead! (Software crash)"
 
 			flag_client_alive[client_index] = 0
+			client_index_lock.release()
 
 			break
 
@@ -71,6 +83,8 @@ def Receive_Messages_From_Single_Client(conn, addr):
 
 		else:
 			print "Data received from ", addr, ": ", data
+
+		client_index_lock.release()
 
 	conn.close()
 
