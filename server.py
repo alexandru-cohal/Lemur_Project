@@ -10,7 +10,7 @@ flag_client_alive = []
 def Accept_Connections():
 	print "I am inside the Accept_Connections Thread!"
 	s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-	s.bind(("129.241.187.57", 20023))
+	s.bind(("129.241.187.153", 20021))
 
 	while True:
 		s.listen(1)
@@ -30,7 +30,6 @@ def Accept_Connections():
 def Watchdog_Client_Alive(conn, addr):
 	while True:
 		try:
-			client_index = address.index(addr)
 			conn.send("[Lemur] AYA?")
 		except:
 			print "Client ", addr, " is dead! (Software crash 2)" 
@@ -38,10 +37,15 @@ def Watchdog_Client_Alive(conn, addr):
 
 		time.sleep(2)
 
+		client_index = address.index(addr) 
 		if flag_client_alive[client_index] == 1:
 			print "Client ", addr, " is alive!"
 		else:
 			print "Client ", addr, " is dead! (Losing Network or Software crash)"
+			connection.pop(client_index)
+			address.pop(client_index)
+			flag_client_alive.pop(client_index)
+			print "I am now connected to ", len(connection), " clients!" 				
 			break
 
 		flag_client_alive[client_index] = 0
@@ -51,18 +55,13 @@ def Receive_Messages_From_Single_Client(conn, addr):
 	global flag_client_alive
 
 	while True:
-		client_index = address.index(addr)
 		data = conn.recv(100)
+		client_index = address.index(addr)
 
 		if not data:
 			print "Client ", addr, "is dead! (Software crash)"
 
 			flag_client_alive[client_index] = 0
-
-			connection.pop(client_index)
-			address.pop(client_index)
-
-			print "I am now connected to ", len(connection), " clients!" 
 
 			break
 
