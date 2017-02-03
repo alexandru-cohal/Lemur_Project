@@ -1,15 +1,16 @@
 import socket
 import time
 
-s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-s.connect(("129.241.187.57", 20023))
+import network
+
+conn = network.Create_Socket("129.241.187.153", 20021)
 
 while True:
-	data = s.recv(100)
+	data = network.Receive_Message(conn)
 	
 	print "Received from Server: ", data
 
 	if data == "[Lemur] AYA?":
-		s.send("[Lemur] IAA")
+		network.Send_Message(conn, "[Lemur] IAA")
 
-s.close()
+network.Close_Connection(conn)
