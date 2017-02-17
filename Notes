@@ -1,0 +1,75 @@
+13/01/2017
+1. C: Functions related with pthread - add pthread in Right click on Project - Properties - C/C++ Build - Settings - GCC C Linker - Libraries - Libraries (-l)
+
+2. GO:  Call of simple function: f()
+	Call of a goroutine: go f()
+	Usage of a goroutine without time.Sleep and without runtime.GOMAXPROCS => the goroutine will not be executed
+	Usage of 2 goroutines with time.Sleep and without runtime.GOMAXPROCS => the goroutines will be executed sequentially
+	Usage of 2 goroutines without time.Sleep and with runtime.GOMAXPROCS => the goroutines will not be executed
+	Usage of 2 goroutines with time.Sleep and with runtime.GOMAXPROCS => the goroutines will be executed in parallel and "randomly"
+
+Question: When we use only 1 CPU we obtain the value of the counter 0. When we use more than 1 CPU we obtain a random value in the counter. Why?
+Question: If the value of the i is 10 000 the counter will be 0. If the value of the i is bigger than 10 000 the counter will have a random value. Why?
+
+19/01/2017
+Question: Difference between make(chan int) and make(chan int, 1)
+Answer: make(chan int, 1) attaches a buffer of size 1 to the channel
+
+GO: Exercise 2 - Channel operations require much time! Increase the sleep time in the main function
+
+----------------------------------------------------------------
+PYTHON ONLY FROM NOW ON!
+----------------------------------------------------------------
+
+26/01/2017 - Exercise 3
+
+UDP: We have to use "sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)" in order to tell the kernel that he can reuse the local socket (port) again after the last usage (e.g. both in Sender and Receiver functions) (See Exercise 3)
+
+UDP: We have to use "sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)" in Sender function if we want to broadcast (when UDP_IP = "255.255.255.255")
+
+The Server IP address and the Port is: 129.241.187.43, 58583
+
+UDP: For Sending function: The IP address is the Receiver's IP address and the Port is the Receiver's Port
+UDP: For Receiving function: The IP address is the sender's IP address and the Port is the Receiver's Port
+
+?????????????????????????????????????????????????
+Question: Why we cannot receive messages from the Server explicitly (use "UDP_IP_Sender = "129.241.187.43" #Server" in the Receiver)? We want to filter the messages we receive on UDP_PORT_Receiver such that to get only the ones from UDP_IP_Sender.
+?????????????????????????????????????????????????
+
+TCP: Tell the Server to connect back to you: Use the IP 127.0.0.1. One socket is enough because we make the connection to be bidirectional
+
+IP addresses from the lab: 
+129.241.187.57 (computer 23)
+129.241.187.151 (computer 18)
+129.241.187.155 (computer 20)
+129.241.187.17 (computer 24)
+129.241.187.147 (computer 16)
+129.241.187.153 (computer 21) 
+
+-----------------
+Rotate screen image: http://www.faqforge.com/linux/rotating-screen-in-ubuntu-and-linux-mint/
+-----------------
+
+How to use C functions in Python!
+http://karuppuswamy.com/wordpress/2012/01/28/how-to-use-c-library-in-python-generating-python-wrappers-for-c-library/
+
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+Make some magic for calling C functions in Python
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+gcc -Wall -fPIC -c elev.c io.c
+
+gcc -shared -WL,-soname,libelev.so.1 -o libelev.so elev.o io.o -lcomedi
+
+Then run Python code which has on the beginning:
+	from ctypes import *
+	mylib = CDLL("./libelev.so")
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+17/02/2017 - Exercise 6
+
+The Python instruction
+	subprocess.call(['gnome-terminal', '-e', 'python ex6.py'])
+opens a new terminal and runs in it the command 'python ex6.py'. The subprocess created is a child and it will die when it parent dies :( => The solution is to run in the main terminal the same command: gnome-terminal -e 'python ex6.py'
+
+Linux command to install Gnome Terminal in order to be able to use the python instruction subprocess.call(['gnome-terminal', '-e', 'python ex6.py']): sudo apt-get install gnome-terminal
