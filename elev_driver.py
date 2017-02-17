@@ -20,7 +20,7 @@ def elev_driver_init():
 	# Initialize the position of the Elevator
 	## The threshold of the counter should be modified according to the distances between the 3rd floor sensor and the upper switch and between the 1rd floor sensor and the down switch
 	counter = 0
-	while libelev.elev_get_floor_sensor_signal() == -1 and counter < 50000:
+	while libelev.elev_get_floor_sensor_signal() == -1 and counter < 5000:
 		counter += 1
 		libelev.elev_set_motor_direction(elev_motor_direction['DOWN'])
 		
@@ -67,6 +67,6 @@ def elev_driver_poll_buttons():
 						old_button_signal[button][floor] = 0;
 
 ## TEST					
-#elev_driver_init()
+elev_driver_init()
 #elev_driver_go_to_floor(3)
 #elev_driver_poll_buttons()
