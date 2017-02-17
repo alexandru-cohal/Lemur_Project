@@ -1,6 +1,6 @@
-#import thread
 import socket
 
+#----------------------------------------------------------------------------------
 def Create_Socket(ip, port):
 	conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 	conn.connect((ip, port))
@@ -11,6 +11,15 @@ def Bind_Socket(ip, port):
 	conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 	conn.bind((ip, port))
 	return conn
+
+#----------------------------------------------------------------------------------
+def Get_IP_Address():
+	# Source: http://stackoverflow.com/questions/24196932/how-can-i-get-the-ip-address-of-eth0-in-python
+
+	s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+	s.connect(("8.8.8.8", 80))
+
+	return s.getsockname()[0]
 
 #----------------------------------------------------------------------------------
 def Accept_Connection(s):
