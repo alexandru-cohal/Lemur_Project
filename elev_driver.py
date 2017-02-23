@@ -54,19 +54,21 @@ def elev_driver_go_to_floor(desired_floor):
 def elev_driver_poll_buttons():
 	global old_button_signal
 	
-	while True:
-		for button in range(0, N_BUTTONS):
-			for floor in range(0, N_FLOORS):
-				button_signal = libelev.elev_get_button_signal(button, floor)
-				if button_signal == 1 and old_button_signal[button][floor] == 0:
-					old_button_signal[button][floor] = 1
-					libelev.elev_set_button_lamp(button, floor, 1)
-					print "The button ", button, " from the floor ", floor, " is pressed!"
-				else:
-					if button_signal == 0 and old_button_signal[button][floor] == 1:
-						old_button_signal[button][floor] = 0;
+	for button in range(0, N_BUTTONS):
+		for floor in range(0, N_FLOORS):
+			button_signal = libelev.elev_get_button_signal(button, floor)
+			if button_signal == 1 and old_button_signal[button][floor] == 0:
+				old_button_signal[button][floor] = 1
+				libelev.elev_set_button_lamp(button, floor, 1)
+				#print "The button ", button, " from the floor ", floor, " is pressed!"
+				return (button, floor)
+			else:
+				if button_signal == 0 and old_button_signal[button][floor] == 1:
+					old_button_signal[button][floor] = 0;
+
+	return (-2, -2)
 
 ## TEST					
-elev_driver_init()
+#elev_driver_init()
 #elev_driver_go_to_floor(3)
 #elev_driver_poll_buttons()
