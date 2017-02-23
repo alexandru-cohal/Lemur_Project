@@ -45,6 +45,8 @@ IP addresses from the lab:
 129.241.187.17 (computer 24)
 129.241.187.147 (computer 16)
 129.241.187.153 (computer 21) 
+129.241.187.152 (computer 13)
+129.241.187.142 (computer 14)
 
 -----------------
 Rotate screen image: http://www.faqforge.com/linux/rotating-screen-in-ubuntu-and-linux-mint/
@@ -73,3 +75,8 @@ The Python instruction
 opens a new terminal and runs in it the command 'python ex6.py'. The subprocess created is a child and it will die when it parent dies :( => The solution is to run in the main terminal the same command: gnome-terminal -e 'python ex6.py'
 
 Linux command to install Gnome Terminal in order to be able to use the python instruction subprocess.call(['gnome-terminal', '-e', 'python ex6.py']): sudo apt-get install gnome-terminal
+
+----------------------------------------------------------------
+Questions:
+1. Can we store the IPs of the elevator?
+2. Does it matter how long a button is pressed?
