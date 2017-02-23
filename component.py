@@ -2,8 +2,9 @@ import thread
 import time
 
 import network
+import elev_driver
 
-address_elevator = ["129.241.187.152", "129.241.187.155", "129.241.187.151"]
+address_elevator = ["129.241.187.152", "129.241.187.153", "129.241.187.142"]
 my_address = network.Get_IP_Address()
 connection = []
 address = []
@@ -118,14 +119,12 @@ def Receive_From_Component(conn, addr):
 			
 		
 #---------------------------------------------------------------------------------------------------------
-
-#add process pair
-
-#---------------------------------------------------------------------------------------------------------
 print 'I am ', my_address
 
 thread.start_new_thread(Listen_To_Components,())
 thread.start_new_thread(Connect_To_Components,())
+
+elev_driver.elev_driver_init()
 
 while True:
 	# Tell the others that I am alive
@@ -141,11 +140,21 @@ while True:
 		else:
 			flag_master = 0
 
+	# Read the buttons of the elevator
+	(button, floor) = elev_driver.elev_driver_poll_buttons()
+
 	if flag_master == 1:
 		# Master part
 		print "I am the Master!"
+		#pass
 	else:
 		# Slave part
 		print "I am a Slave!"
 
-	time.sleep(2)
+		master_conn = connection[ address.index( min(address) ) ]
+
+		if button != -2 and floor != -2:
+			#print "Button ", button, "from floor ", floor, " has been pressed"
+			network.Send_Message(master_conn, "[Lemur] " + str(button) + " " + str(floor))
+
+	time.sleep(0.5)
