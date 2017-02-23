@@ -118,11 +118,9 @@ def Receive_From_Component(conn, addr):
 			
 		
 #---------------------------------------------------------------------------------------------------------
-#def Watchdog_Client_Alive(conn, addr):
-
-#def Main_Thread(conn, addr):
 
 #add process pair
+
 #---------------------------------------------------------------------------------------------------------
 print 'I am ', my_address
 
@@ -130,7 +128,24 @@ thread.start_new_thread(Listen_To_Components,())
 thread.start_new_thread(Connect_To_Components,())
 
 while True:
+	# Tell the others that I am alive
 	for conn in connection:
 		network.Send_Message(conn, "[Lemur] IAA")
+
+	# Find the role in the network
+	if not address:
+		flag_master = 1
+	else:
+		if my_address < min(address):
+			flag_master = 1
+		else:
+			flag_master = 0
+
+	if flag_master == 1:
+		# Master part
+		print "I am the Master!"
+	else:
+		# Slave part
+		print "I am a Slave!"
 
 	time.sleep(2)
