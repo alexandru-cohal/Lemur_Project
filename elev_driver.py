@@ -1,3 +1,4 @@
+import threading
 import time
 from ctypes import *
 libelev = CDLL("./libelev.so")
@@ -9,6 +10,8 @@ elev_motor_direction = {'DOWN': -1, 'STOP': 0, 'UP': 1}
 elev_lamp = {'BUTTON_CALL_UP': 0, 'BUTTON_CALL_DOWN': 1, 'BUTTON_COMMAND': 2}
 
 old_button_signal = []
+
+elev_busy = threading.Lock()
 
 #---------------------------------------------------------------------------------------------------------
 def elev_driver_init():
@@ -33,6 +36,8 @@ def elev_driver_init():
 	
 #---------------------------------------------------------------------------------------------------------
 def elev_driver_go_to_floor(desired_floor):
+	elev_busy.acquire()
+
 	while True:
 		current_floor = libelev.elev_get_floor_sensor_signal()
 
@@ -42,6 +47,11 @@ def elev_driver_go_to_floor(desired_floor):
 			if current_floor == desired_floor:
 				libelev.elev_set_motor_direction(elev_motor_direction['STOP'])
 				print "I reached the desired floor: ", desired_floor
+				libelev.elev_set_button_lamp(2, desired_floor, 0)
+				# Maybe turn off now also the UP / DOWN lamp of the desired floor 
+				libelev.elev_set_door_open_lamp(1)
+				time.sleep(3)				
+				libelev.elev_set_door_open_lamp(0)				
 				break
 			else:		
 				if current_floor < desired_floor:
@@ -49,7 +59,9 @@ def elev_driver_go_to_floor(desired_floor):
 				else:
 					if current_floor > desired_floor:
 						libelev.elev_set_motor_direction(elev_motor_direction['DOWN'])
-	
+
+	elev_busy.release()
+
 #---------------------------------------------------------------------------------------------------------
 def elev_driver_poll_buttons():
 	global old_button_signal
