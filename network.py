@@ -35,9 +35,9 @@ def Send_Message(conn, message):
 	conn.send(message)
 
 #----------------------------------------------------------------------------------	
-def Broadcast_Message(message):
-	print "Bbb"
-	## To be implemented
+def Broadcast_Message(connection, message):
+	for conn in connection:
+		Send_Message(conn, message)
 
 #----------------------------------------------------------------------------------
 def Close_Connection(conn):
