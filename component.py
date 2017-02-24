@@ -4,7 +4,7 @@ import time
 import network
 import elev_driver
 
-address_elevator = ["129.241.187.152", "129.241.187.153", "129.241.187.142"]
+address_elevator = ["129.241.187.157", "129.241.187.153"]
 my_address = network.Get_IP_Address()
 connection = []
 address = []
@@ -60,7 +60,7 @@ def Connect_To_Components():
 					thread.start_new_thread(Receive_From_Component,(conn, addr))
 					thread.start_new_thread(Watchdog_Component_Alive,(conn, addr))
 
-			time.sleep(1)
+			time.sleep(0.5)
 
 #---------------------------------------------------------------------------------------------------------
 def Eliminate_Component_From_Lists(addr):
@@ -81,6 +81,9 @@ def Watchdog_Component_Alive(conn, addr):
 	global flag_component_alive
 
 	while True:
+		# Tell the others that I am alive
+		network.Broadcast_Message(connection, "[Lemur] IAA")
+
 		try:
 			component_index = address.index(addr)
 		except:
@@ -94,8 +97,9 @@ def Watchdog_Component_Alive(conn, addr):
 				break
 			else:
 				# Alive component
-				flag_component_alive[component_index] == 0
-				time.sleep(3)
+				print addr, "is alive"
+				flag_component_alive[component_index] = 0
+				time.sleep(1)
 		
 #---------------------------------------------------------------------------------------------------------
 def Receive_From_Component(conn, addr):
@@ -115,10 +119,19 @@ def Receive_From_Component(conn, addr):
 		else:
 			# Alive component
 			print "I received from ", addr, "the message: ", message
-			flag_component_alive[address.index(addr)] = 1
 			
-		
-#---------------------------------------------------------------------------------------------------------
+			message_items = message.split(" ")
+			if message_items[0] == "[Lemur]":
+				# One of our messages
+				flag_component_alive[address.index(addr)] = 1
+
+				if message_items[1] == "[Button]":
+					button = int(message_items[2])
+					floor = int(message_items[3])
+					elev_driver.libelev.elev_set_button_lamp(button, floor, 1)
+			
+
+#------------------------------------------MAIN---------------------------------------------------------
 print 'I am ', my_address
 
 thread.start_new_thread(Listen_To_Components,())
@@ -127,10 +140,6 @@ thread.start_new_thread(Connect_To_Components,())
 elev_driver.elev_driver_init()
 
 while True:
-	# Tell the others that I am alive
-	for conn in connection:
-		network.Send_Message(conn, "[Lemur] IAA")
-
 	# Find the role in the network
 	if not address:
 		flag_master = 1
@@ -140,8 +149,23 @@ while True:
 		else:
 			flag_master = 0
 
+	# Announce the others whether I am BUSY or FREE
+	if elev_driver.elev_busy.acquire(False) == False:
+		network.Broadcast_Message(connection, "[Lemur] " + "[Status] " + "Busy")
+	else:
+		elev_driver.elev_busy.release()
+		network.Broadcast_Message(connection, "[Lemur] " + "[Status] " + "Free")
+
 	# Read the buttons of the elevator
 	(button, floor) = elev_driver.elev_driver_poll_buttons()
+	if button != -2 and floor != -2:
+		# A button was pressed
+		if button == 2:
+			# COMMAND button was pressed
+			thread.start_new_thread(elev_driver.elev_driver_go_to_floor, (floor,))
+		else:
+			# UP or DOWN button was pressed
+			network.Broadcast_Message(connection, "[Lemur] " + "[Button] " + str(button) + " " + str(floor))
 
 	if flag_master == 1:
 		# Master part
@@ -151,10 +175,6 @@ while True:
 		# Slave part
 		print "I am a Slave!"
 
-		master_conn = connection[ address.index( min(address) ) ]
-
-		if button != -2 and floor != -2:
-			#print "Button ", button, "from floor ", floor, " has been pressed"
-			network.Send_Message(master_conn, "[Lemur] " + str(button) + " " + str(floor))
+		#master_conn = connection[ address.index( min(address) ) ]
 
 	time.sleep(0.5)
