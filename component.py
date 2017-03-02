@@ -4,11 +4,13 @@ import time
 import network
 import elev_driver
 
-address_elevator = ["129.241.187.157", "129.241.187.153"]
+address_elevator = ["129.241.187.48", "129.241.187.38"]
 my_address = network.Get_IP_Address()
 connection = []
 address = []
 flag_component_alive = []
+component_status = [] # 1 = Busy, 0 = Free
+my_status = 0 # 1 = Busy, 0 = Free
 
 #---------------------------------------------------------------------------------------------------------
 def Listen_To_Components():
@@ -28,6 +30,7 @@ def Listen_To_Components():
 		connection.append(conn)		
 		address.append(addr)
 		flag_component_alive.append(1)
+		component_status.append(0)
 
 		print "I am connected to ", len(connection), " components!" 
 		print "New Connected address:", address[-1]
@@ -54,6 +57,7 @@ def Connect_To_Components():
 					connection.append(conn)
 					address.append(addr)
 					flag_component_alive.append(1)
+					component_status.append(0)
 					print "New Connected address:", address[-1]
 					print "I am connected to ", len(connection), " components!" 
 
@@ -72,6 +76,7 @@ def Eliminate_Component_From_Lists(addr):
 	connection.pop(component_index)
 	address.pop(component_index)
 	flag_component_alive.pop(component_index)
+	component_status.pop(component_index)
 
 	print "I am now connected to ", len(connection), " components!"
 
@@ -129,6 +134,13 @@ def Receive_From_Component(conn, addr):
 					button = int(message_items[2])
 					floor = int(message_items[3])
 					elev_driver.libelev.elev_set_button_lamp(button, floor, 1)
+
+				if message_items[1] == "[Status]":
+					if message_items[2] == "Busy":
+						component_status[address.index(addr)] = 1
+					else:
+						if message_items[2] == "Free":
+							component_status[address.index(addr)] = 0
 			
 
 #------------------------------------------MAIN---------------------------------------------------------
@@ -151,8 +163,10 @@ while True:
 
 	# Announce the others whether I am BUSY or FREE
 	if elev_driver.elev_busy.acquire(False) == False:
+		my_status = 1
 		network.Broadcast_Message(connection, "[Lemur] " + "[Status] " + "Busy")
 	else:
+		my_status = 0
 		elev_driver.elev_busy.release()
 		network.Broadcast_Message(connection, "[Lemur] " + "[Status] " + "Free")
 
@@ -176,5 +190,8 @@ while True:
 		print "I am a Slave!"
 
 		#master_conn = connection[ address.index( min(address) ) ]
+
+	print "Others' Status: ", address, component_status
+	print "My Status: ", my_status
 
 	time.sleep(0.5)
