@@ -11,6 +11,8 @@ address = []
 flag_component_alive = []
 component_status = [] # 1 = Busy, 0 = Free
 my_status = 0 # 1 = Busy, 0 = Free
+commands_queue = []
+flag_assign_component_thread_created = 0
 
 #---------------------------------------------------------------------------------------------------------
 def Listen_To_Components():
@@ -134,6 +136,7 @@ def Receive_From_Component(conn, addr):
 					button = int(message_items[2])
 					floor = int(message_items[3])
 					elev_driver.libelev.elev_set_button_lamp(button, floor, 1)
+					commands_queue.append([button, floor, ""])
 
 				if message_items[1] == "[Status]":
 					if message_items[2] == "Busy":
@@ -142,6 +145,34 @@ def Receive_From_Component(conn, addr):
 						if message_items[2] == "Free":
 							component_status[address.index(addr)] = 0
 			
+#---------------------------------------------------------------------------------------------------------
+def Assign_Component():
+	global my_status, component_status, commands_queue, flag_assign_component_thread_created
+
+	while flag_master == 1:		
+		# Check the commands queue
+		for command in commands_queue:
+			if command[2] == "":
+				# It is an unhandled command	
+				if my_status == 0:
+					my_status = 1
+					command[2] = my_address
+					network.Broadcast_Message(connection, "[Lemur] " + "[Assignment] " + str(button) + " " + str(floor) + " " + my_address)
+					thread.start_new_thread(elev_driver.elev_driver_go_to_floor, (floor,))
+				else:
+					flag_free_component = 0 # 0 = All components are Busy, 1 = At least one component is Free
+					while flag_free_component == 0:
+						try:
+							free_component_index = component_status.index(0)
+						except:
+							pass
+						else:
+							flag_free_component = 1
+					component_status[free_component_index] = 1
+					command[2] = address[free_component_index]
+					network.Broadcast_Message(connection, "[Lemur] " + "[Assignment] " + str(button) + " " + str(floor) + " " + address[free_component_index])
+
+	flag_assign_component_thread_created = 0
 
 #------------------------------------------MAIN---------------------------------------------------------
 print 'I am ', my_address
@@ -180,18 +211,26 @@ while True:
 		else:
 			# UP or DOWN button was pressed
 			network.Broadcast_Message(connection, "[Lemur] " + "[Button] " + str(button) + " " + str(floor))
+			commands_queue.append([button, floor, ""])
 
 	if flag_master == 1:
 		# Master part
 		print "I am the Master!"
+		#if flag_assign_component_thread_created == 0:
+		#	flag_assign_component_thread_created = 1
+		#	thread.start_new_thread(Assign_Component,())
+		
 		#pass
 	else:
 		# Slave part
 		print "I am a Slave!"
+			
 
 		#master_conn = connection[ address.index( min(address) ) ]
 
-	print "Others' Status: ", address, component_status
-	print "My Status: ", my_status
+	#print "Others' Status: ", address, component_status
+	#print "My Status: ", my_status
+
+	print "Commands: ", commands_queue
 
 	time.sleep(0.5)
