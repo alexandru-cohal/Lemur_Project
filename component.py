@@ -4,7 +4,7 @@ import time
 import network
 import elev_driver
 
-address_elevator = ["129.241.187.153", "129.241.187.157"]
+address_elevator = ["129.241.187.153", "129.241.187.151", "129.241.187.157"]
 my_address = network.Get_IP_Address()
 connection = []
 address = []
@@ -88,9 +88,6 @@ def Watchdog_Component_Alive(conn, addr):
 	global flag_component_alive
 
 	while True:
-		# Tell the others that I am alive
-		network.Broadcast_Message(connection, "[Lemur] IAA")
-
 		try:
 			component_index = address.index(addr)
 		except:
@@ -169,26 +166,27 @@ def Assign_Component():
 		# Check the commands queue
 		for command in commands_queue:
 			if command[2] == "":
-				time.sleep(0.1)
-				# It is an unhandled command	
-				if my_status == 0:
-					my_status = 1
-					command[2] = my_address
-					network.Broadcast_Message(connection, "[Lemur] " + "[Assignment] " + str(command[0]) + " " + str(command[1]) + " " + my_address)				
-					thread.start_new_thread(Execute_Command, (command[1], 0))
-				else:
-					flag_free_component = 0 # 0 = All components are Busy, 1 = At least one component is Free
-					while flag_free_component == 0:
+				print "Unhandled command found!"
+				flag_free_component = 0 # 0 = All components are Busy, 1 = At least one component is Free
+
+				while flag_free_component == 0:	
+					time.sleep(0.1)
+					if my_status == 0:
+						flag_free_component = 1
+						my_status = 1
+						command[2] = my_address
+						network.Broadcast_Message(connection, "[Lemur] " + "[Assignment] " + str(command[0]) + " " + str(command[1]) + " " + my_address)
+						thread.start_new_thread(Execute_Command, (command[1], 0))
+					else:
 						try:
 							free_component_index = component_status.index(0)
 						except:
 							pass
 						else:
 							flag_free_component = 1
-						time.sleep(0.1)
-					component_status[free_component_index] = 1
-					command[2] = address[free_component_index]
-					network.Broadcast_Message(connection, "[Lemur] " + "[Assignment] " + str(command[0]) + " " + str(command[1]) + " " + address[free_component_index])
+							component_status[free_component_index] = 1
+							command[2] = address[free_component_index]
+							network.Broadcast_Message(connection, "[Lemur] " + "[Assignment] " + str(command[0]) + " " + str(command[1]) + " " + address[free_component_index])
 
 	flag_assign_component_thread_created = 0
 
@@ -227,6 +225,9 @@ thread.start_new_thread(Connect_To_Components,())
 elev_driver.elev_driver_init()
 
 while True:
+	# Tell the others that I am alive
+	network.Broadcast_Message(connection, "[Lemur] [Alive]")
+
 	# Find the role in the network
 	if not address:
 		flag_master = 1
@@ -235,15 +236,6 @@ while True:
 			flag_master = 1
 		else:
 			flag_master = 0
-
-	# Announce the others whether I am BUSY or FREE
-#	if elev_driver.elev_busy.acquire(False) == False:
-#		my_status = 1
-#		network.Broadcast_Message(connection, "[Lemur] " + "[Status] " + "Busy")
-#	else:
-#		my_status = 0
-#		elev_driver.elev_busy.release()
-#		network.Broadcast_Message(connection, "[Lemur] " + "[Status] " + "Free")
 
 	# Read the buttons of the elevator
 	(button, floor) = elev_driver.elev_driver_poll_buttons()
@@ -264,18 +256,10 @@ while True:
 		if flag_assign_component_thread_created == 0:
 			flag_assign_component_thread_created = 1
 			thread.start_new_thread(Assign_Component,())
-		
-		#pass
 	else:
 		# Slave part
 		print "I am a Slave!"
 			
-
-		#master_conn = connection[ address.index( min(address) ) ]
-
-	#print "Others' Status: ", address, component_status
-	#print "My Status: ", my_status
-
 	print "Commands: ", commands_queue
 
 	time.sleep(0.5)
