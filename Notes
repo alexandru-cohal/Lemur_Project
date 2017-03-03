@@ -39,10 +39,10 @@ Question: Why we cannot receive messages from the Server explicitly (use "UDP_IP
 TCP: Tell the Server to connect back to you: Use the IP 127.0.0.1. One socket is enough because we make the connection to be bidirectional
 
 IP addresses from the lab: 
-129.241.187.57(48) (computer 23)
+129.241.187.48 (computer 23)
 129.241.187.151 (computer 18)
 129.241.187.155 (computer 20)
-129.241.187.17 (computer 24)
+129.241.187.46 (computer 24)
 129.241.187.147 (computer 16)
 129.241.187.153 (computer 21) 
 129.241.187.152 (computer 13)
@@ -50,6 +50,7 @@ IP addresses from the lab:
 129.241.187.157 (computer 19)
 129.241.187.38 (computer 22)
 129.241.187.140 (computer 11)
+129.241.187.145 (computer 17)
 
 -----------------
 Rotate screen image: http://www.faqforge.com/linux/rotating-screen-in-ubuntu-and-linux-mint/
