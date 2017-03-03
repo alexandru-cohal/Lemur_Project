@@ -31,9 +31,8 @@ def elev_driver_init():
 		libelev.elev_set_motor_direction(elev_motor_direction['UP'])
 	libelev.elev_set_motor_direction(elev_motor_direction['STOP'])
 	
-	print "I initialized myself on the floor: ", libelev.elev_get_floor_sensor_signal()	
-	
-	
+	print "I initialized myself on the floor: ", libelev.elev_get_floor_sensor_signal()		
+		
 #---------------------------------------------------------------------------------------------------------
 def elev_driver_go_to_floor(desired_floor):
 	elev_busy.acquire()
