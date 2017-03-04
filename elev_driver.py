@@ -6,7 +6,8 @@ libelev = CDLL("./libelev.so")
 
 N_FLOORS = 4
 N_BUTTONS = 3
-ELEVATOR_STUCK_THRESHOLD = 20
+ELEVATOR_STUCK_THRESHOLD = 10
+INIT_POSITION_THRESHOLD = 5000
 
 elev_motor_direction = {'DOWN': -1, 'STOP': 0, 'UP': 1}
 elev_lamp = {'BUTTON_CALL_UP': 0, 'BUTTON_CALL_DOWN': 1, 'BUTTON_COMMAND': 2}
@@ -25,7 +26,22 @@ def elev_driver_init():
 	# Initialize the position of the Elevator
 	## The threshold of the counter should be modified according to the distances between the 3rd floor sensor and the upper switch and between the 1rd floor sensor and the down switch
 	counter = 0
-	while libelev.elev_get_floor_sensor_signal() == -1 and counter < 5000:
+	while libelev.elev_get_floor_sensor_signal() == -1 and counter < INIT_POSITION_THRESHOLD:
+		counter += 1
+		libelev.elev_set_motor_direction(elev_motor_direction['DOWN'])
+		
+	while libelev.elev_get_floor_sensor_signal() == -1:
+		libelev.elev_set_motor_direction(elev_motor_direction['UP'])
+	libelev.elev_set_motor_direction(elev_motor_direction['STOP'])
+	
+	print "I initialized myself on the floor: ", libelev.elev_get_floor_sensor_signal()	
+
+#---------------------------------------------------------------------------------------------------------
+def elev_driver_init_after_stuck():
+	# Initialize the position of the Elevator
+	## The threshold of the counter should be modified according to the distances between the 3rd floor sensor and the upper switch and between the 1rd floor sensor and the down switch
+	counter = 0
+	while libelev.elev_get_floor_sensor_signal() == -1 and counter < INIT_POSITION_THRESHOLD:
 		counter += 1
 		libelev.elev_set_motor_direction(elev_motor_direction['DOWN'])
 		
@@ -42,7 +58,6 @@ def elev_driver_go_to_floor(desired_floor):
 	start_seconds = datetime.datetime.now().second
 
 	while True:
-		
 		current_seconds = datetime.datetime.now().second
 		difference_seconds = current_seconds - start_seconds
 		if difference_seconds < 0:
@@ -50,6 +65,7 @@ def elev_driver_go_to_floor(desired_floor):
 		
 		if difference_seconds >= ELEVATOR_STUCK_THRESHOLD:
 			# Elevator is stuck
+			elev_busy.release()
 			return -1
 			
 		current_floor = libelev.elev_get_floor_sensor_signal()
