@@ -4,7 +4,7 @@ import time
 import network
 import elev_driver
 
-address_elevator = ["129.241.187.153", "129.241.187.151", "129.241.187.157"]
+address_elevator = ["129.241.187.38", "129.241.187.157", "129.241.187.46"]
 my_address = network.Get_IP_Address()
 connection = []
 address = []
@@ -40,6 +40,13 @@ def Listen_To_Components():
 		thread.start_new_thread(Receive_From_Component,(conn, addr))
 		thread.start_new_thread(Watchdog_Component_Alive,(conn, addr))
 
+		print "Synchronize queues"
+		## Synchronize queues (sending)
+		for command in commands_queue:
+			network.Broadcast_Message(connection, "[Lemur] " + "[Queue] " + str(command[0]) + " " + str(command[1]) + " " + command[2])
+			time.sleep(0.1)
+		print "End of Synchronize queues"
+
 #---------------------------------------------------------------------------------------------------------
 def Connect_To_Components():
 	global connection
@@ -60,11 +67,19 @@ def Connect_To_Components():
 					address.append(addr)
 					flag_component_alive.append(1)
 					component_status.append(0)
+
 					print "New Connected address:", address[-1]
 					print "I am connected to ", len(connection), " components!" 
 
 					thread.start_new_thread(Receive_From_Component,(conn, addr))
 					thread.start_new_thread(Watchdog_Component_Alive,(conn, addr))
+
+					print "Synchronize queues"
+					## Synchronize queues (sending)
+					for command in commands_queue:
+						network.Broadcast_Message(connection, "[Lemur] " + "[Queue] " + str(command[0]) + " " + str(command[1]) + " " + command[2])
+						time.sleep(0.1)
+					print "End of Synchronize queues"
 
 			time.sleep(0.5)
 
@@ -153,11 +168,22 @@ def Receive_From_Component(conn, addr):
 
 				if message_items[1] == "[Accomplishment]":
 					for command in commands_queue:
-						if command[2] == addr:
+						if command[2] == addr and command[1] == int(message_items[2]):
 							commands_queue.pop(commands_queue.index(command)) 
 							elev_driver.libelev.elev_set_button_lamp(0, command[1], 0)
 							elev_driver.libelev.elev_set_button_lamp(1, command[1], 0)
-			
+
+				if message_items[1] == "[Queue]":
+					flag_same_command_found = 0
+					for command in commands_queue:
+						if command[0] == int(message_items[2]) and command[1] == int(message_items[3]):
+							flag_same_command_found = 1
+							if message_items[4] != "":
+								command[2] = message_items[4]
+							break
+					if flag_same_command_found == 0:
+						commands_queue.append([int(message_items[2]), int(message_items[3]), message_items[4]])
+									
 #---------------------------------------------------------------------------------------------------------
 def Assign_Component():
 	global my_status, component_status, commands_queue, flag_assign_component_thread_created
@@ -204,11 +230,11 @@ def Execute_Command(floor, internal):
 	if internal == 0:
 		# We have to pop out the accomplished command from the queue
 		for command in commands_queue:
-			if command[2] == my_address:
+			if command[2] == my_address and command[1] == elev_driver.libelev.elev_get_floor_sensor_signal():
 				commands_queue.pop(commands_queue.index(command))
 
 		# Send a message to the others to pop out too from their queues
-		network.Broadcast_Message(connection, "[Lemur] " + "[Accomplishment]")
+		network.Broadcast_Message(connection, "[Lemur] " + "[Accomplishment] " + str(command[1]))
 
 		elev_driver.libelev.elev_set_button_lamp(0, floor, 0)
 		elev_driver.libelev.elev_set_button_lamp(1, floor, 0)
