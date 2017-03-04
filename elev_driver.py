@@ -1,10 +1,12 @@
 import threading
 import time
+import datetime
 from ctypes import *
 libelev = CDLL("./libelev.so")
 
 N_FLOORS = 4
 N_BUTTONS = 3
+ELEVATOR_STUCK_THRESHOLD = 20
 
 elev_motor_direction = {'DOWN': -1, 'STOP': 0, 'UP': 1}
 elev_lamp = {'BUTTON_CALL_UP': 0, 'BUTTON_CALL_DOWN': 1, 'BUTTON_COMMAND': 2}
@@ -37,7 +39,19 @@ def elev_driver_init():
 def elev_driver_go_to_floor(desired_floor):
 	elev_busy.acquire()
 
+	start_seconds = datetime.datetime.now().second
+
 	while True:
+		
+		current_seconds = datetime.datetime.now().second
+		difference_seconds = current_seconds - start_seconds
+		if difference_seconds < 0:
+			difference_seconds = difference_seconds + 60
+		
+		if difference_seconds >= ELEVATOR_STUCK_THRESHOLD:
+			# Elevator is stuck
+			return -1
+			
 		current_floor = libelev.elev_get_floor_sensor_signal()
 
 		if current_floor != -1:
@@ -59,7 +73,11 @@ def elev_driver_go_to_floor(desired_floor):
 					if current_floor > desired_floor:
 						libelev.elev_set_motor_direction(elev_motor_direction['DOWN'])
 
+		time.sleep(0.1)
+
 	elev_busy.release()
+
+	return 0
 
 #---------------------------------------------------------------------------------------------------------
 def elev_driver_poll_buttons():
