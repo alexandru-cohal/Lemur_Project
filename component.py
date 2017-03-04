@@ -4,7 +4,7 @@ import time
 import network
 import elev_driver
 
-address_elevator = ["129.241.187.38", "129.241.187.157", "129.241.187.46"]
+address_elevator = ["129.241.187.38", "129.241.187.157"]
 my_address = network.Get_IP_Address()
 connection = []
 address = []
@@ -164,7 +164,7 @@ def Receive_From_Component(conn, addr):
 						if command_item[0] == int(message_items[2]) and command_item[1] == int(message_items[3]):
 							command_item[2] = message_items[4]
 					if my_address == message_items[4]:
-						thread.start_new_thread(Execute_Command, (int(message_items[3]), 0))
+						thread.start_new_thread(Execute_Command, (int(message_items[2]), int(message_items[3]), 0))
 
 				if message_items[1] == "[Accomplishment]":
 					for command in commands_queue:
@@ -183,6 +183,13 @@ def Receive_From_Component(conn, addr):
 							break
 					if flag_same_command_found == 0:
 						commands_queue.append([int(message_items[2]), int(message_items[3]), message_items[4]])
+
+				if message_items[1] == "[Stuck]":
+					for command in commands_queue:
+						if command[2] == addr and command[1] == int(message_items[3]):
+							print "Stuck command poped"
+							commands_queue.pop(commands_queue.index(command)) 
+					commands_queue.append([int(message_items[2]), int(message_items[3]), ""])
 									
 #---------------------------------------------------------------------------------------------------------
 def Assign_Component():
@@ -202,7 +209,7 @@ def Assign_Component():
 						my_status = 1
 						command[2] = my_address
 						network.Broadcast_Message(connection, "[Lemur] " + "[Assignment] " + str(command[0]) + " " + str(command[1]) + " " + my_address)
-						thread.start_new_thread(Execute_Command, (command[1], 0))
+						thread.start_new_thread(Execute_Command, (command[0], command[1], 0))
 					else:
 						try:
 							free_component_index = component_status.index(0)
@@ -217,30 +224,49 @@ def Assign_Component():
 	flag_assign_component_thread_created = 0
 
 #---------------------------------------------------------------------------------------------------------
-def Execute_Command(floor, internal):
+def Execute_Command(button, floor, internal):
 	# internal = 1 if it is an internal command, 0 if it is an external command
+	global my_address
 	global my_status
 	global commands_queue
 
 	my_status = 1
 	network.Broadcast_Message(connection, "[Lemur] " + "[Status] " + "Busy")
 
-	elev_driver.elev_driver_go_to_floor(floor)
-
 	if internal == 0:
-		# We have to pop out the accomplished command from the queue
-		for command in commands_queue:
-			if command[2] == my_address and command[1] == elev_driver.libelev.elev_get_floor_sensor_signal():
-				commands_queue.pop(commands_queue.index(command))
+		# External command
+		if elev_driver.elev_driver_go_to_floor(floor) == -1:
+			# It is stuck
+			print "!!!!!!!!!!!!!!!!!!!!!!!! STUCK !!!!!!!!!!!!!!!!!!!!!!!!"
 
-		# Send a message to the others to pop out too from their queues
-		network.Broadcast_Message(connection, "[Lemur] " + "[Accomplishment] " + str(command[1]))
+			network.Broadcast_Message(connection, "[Lemur] " + "[Stuck] " + str(button) + " " + str(floor))
 
-		elev_driver.libelev.elev_set_button_lamp(0, floor, 0)
-		elev_driver.libelev.elev_set_button_lamp(1, floor, 0)
+			commands_queue.append([button, floor, ""])
+			for command in commands_queue:
+				if command[2] == my_address and command[1] == floor:
+					commands_queue.pop(commands_queue.index(command))
+		else:
+			# It is NOT stuck => It is accomplished
+			# We have to pop out the accomplished command from the queue
+			for command in commands_queue:
+				if command[2] == my_address and command[1] == elev_driver.libelev.elev_get_floor_sensor_signal():
+					print "Command poped"
+					commands_queue.pop(commands_queue.index(command))
 
-	my_status = 0
-	network.Broadcast_Message(connection, "[Lemur] " + "[Status] " + "Free")
+			# Send a message to the others to pop out too from their queues
+			network.Broadcast_Message(connection, "[Lemur] " + "[Accomplishment] " + str(command[1]))
+
+			elev_driver.libelev.elev_set_button_lamp(0, floor, 0)
+			elev_driver.libelev.elev_set_button_lamp(1, floor, 0)
+
+			my_status = 0
+			network.Broadcast_Message(connection, "[Lemur] " + "[Status] " + "Free")
+	else:
+		# Internal command
+		elev_driver.elev_driver_go_to_floor(floor)
+
+		my_status = 0
+		network.Broadcast_Message(connection, "[Lemur] " + "[Status] " + "Free")
 
 #------------------------------------------MAIN---------------------------------------------------------
 print 'I am ', my_address
@@ -269,10 +295,10 @@ while True:
 		# A button was pressed
 		if button == 2:
 			# COMMAND button was pressed
-			thread.start_new_thread(Execute_Command, (floor, 1))
+			thread.start_new_thread(Execute_Command, (button, floor, 1))
 		else:
 			# UP or DOWN button was pressed
-			network.Broadcast_Message(connection, "[Lemur] " + "[Button] " + str(button) + " " + str(floor)), "\0"
+			network.Broadcast_Message(connection, "[Lemur] " + "[Button] " + str(button) + " " + str(floor))
 			if [item for item in commands_queue if item[0] == button and item[1] == floor] == []:
 				commands_queue.append([button, floor, ""])
 
