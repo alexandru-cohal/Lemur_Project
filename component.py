@@ -4,7 +4,9 @@ import time
 import network
 import elev_driver
 
-address_elevator = ["129.241.187.38", "129.241.187.157"]
+STUCK_TIMES_THRESHOLD = 3
+
+address_elevator = ["129.241.187.38", "129.241.187.157", "129.241.187.48"]
 my_address = network.Get_IP_Address()
 connection = []
 address = []
@@ -13,6 +15,7 @@ component_status = [] # 1 = Busy, 0 = Free
 my_status = 0 # 1 = Busy, 0 = Free
 commands_queue = []
 flag_assign_component_thread_created = 0
+my_stuck_times = 0
 
 #---------------------------------------------------------------------------------------------------------
 def Listen_To_Components():
@@ -187,7 +190,6 @@ def Receive_From_Component(conn, addr):
 				if message_items[1] == "[Stuck]":
 					for command in commands_queue:
 						if command[2] == addr and command[1] == int(message_items[3]):
-							print "Stuck command poped"
 							commands_queue.pop(commands_queue.index(command)) 
 					commands_queue.append([int(message_items[2]), int(message_items[3]), ""])
 									
@@ -229,6 +231,7 @@ def Execute_Command(button, floor, internal):
 	global my_address
 	global my_status
 	global commands_queue
+	global my_stuck_times
 
 	my_status = 1
 	network.Broadcast_Message(connection, "[Lemur] " + "[Status] " + "Busy")
@@ -238,19 +241,31 @@ def Execute_Command(button, floor, internal):
 		if elev_driver.elev_driver_go_to_floor(floor) == -1:
 			# It is stuck
 			print "!!!!!!!!!!!!!!!!!!!!!!!! STUCK !!!!!!!!!!!!!!!!!!!!!!!!"
+			my_stuck_times = my_stuck_times + 1
+			print "Stuck times: ", my_stuck_times
 
 			network.Broadcast_Message(connection, "[Lemur] " + "[Stuck] " + str(button) + " " + str(floor))
-
 			commands_queue.append([button, floor, ""])
+
 			for command in commands_queue:
 				if command[2] == my_address and command[1] == floor:
 					commands_queue.pop(commands_queue.index(command))
+
+			elev_driver.libelev.elev_set_motor_direction(elev_driver.elev_motor_direction['STOP'])
+
+			if my_stuck_times < STUCK_TIMES_THRESHOLD:
+				# Give it another chance (only 2 chances available)
+				time.sleep(3)
+				elev_driver.elev_driver_init_after_stuck()
+	
+				my_status = 0
+				network.Broadcast_Message(connection, "[Lemur] " + "[Status] " + "Free")
 		else:
 			# It is NOT stuck => It is accomplished
 			# We have to pop out the accomplished command from the queue
 			for command in commands_queue:
+				print command[2] == my_address, command[1] == elev_driver.libelev.elev_get_floor_sensor_signal()
 				if command[2] == my_address and command[1] == elev_driver.libelev.elev_get_floor_sensor_signal():
-					print "Command poped"
 					commands_queue.pop(commands_queue.index(command))
 
 			# Send a message to the others to pop out too from their queues
