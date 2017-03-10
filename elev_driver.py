@@ -9,7 +9,7 @@ libelev = CDLL("./libelev.so")
 N_FLOORS = 4
 N_BUTTONS = 3
 DOOR_OPEN_TIME = 3
-ELEVATOR_STUCK_THRESHOLD = 10
+ELEVATOR_STUCK_THRESHOLD = 20
 INIT_POSITION_THRESHOLD = 5000
 ELEV_MOTOR_DIRECTION = {'DOWN': -1, 'STOP': 0, 'UP': 1}
 ELEV_LAMP = {'BUTTON_CALL_UP': 0, 'BUTTON_CALL_DOWN': 1, 'BUTTON_COMMAND': 2}
@@ -80,7 +80,7 @@ def elev_driver_go_to_floor(desired_floor):
 				libelev.elev_set_motor_direction(ELEV_MOTOR_DIRECTION['STOP'])
 
 				libelev.elev_set_door_open_lamp(1)
-				time.sleep(DOOR_OPEN_TIME)				
+				time.sleep(3)				
 				libelev.elev_set_door_open_lamp(0)	
 			
 				break

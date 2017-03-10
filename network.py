@@ -1,4 +1,9 @@
 import socket
+import time
+import threading
+
+#---------------------------------------------------------------------------------------------------------
+send_channel_busy = threading.Lock()
 
 #----------------------------------------------------------------------------------
 def Create_Socket(ip, port):
@@ -34,7 +39,12 @@ def Receive_Message(conn):
 
 #----------------------------------------------------------------------------------
 def Send_Message(conn, message):
+	send_channel_busy.acquire()
+
 	conn.send(message)
+	time.sleep(0.1)
+
+	send_channel_busy.release()
 
 #----------------------------------------------------------------------------------	
 def Broadcast_Message(connection, message):
