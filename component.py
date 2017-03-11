@@ -221,6 +221,7 @@ def Assign_Component():
 							component_status[free_component_index] = 1
 							command[2] = address[free_component_index]
 							network.Broadcast_Message(connection, "[Lemur] " + "[Assignment] " + str(command[0]) + " " + str(command[1]) + " " + address[free_component_index])
+						time.sleep(0.1)
 
 	flag_assign_component_thread_created = 0
 
