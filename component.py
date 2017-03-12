@@ -1,13 +1,14 @@
 import thread
 import time
+import datetime
 import network
 import elev_driver
 
 #---------------------------------------------------------------------------------------------------------
-ADDRESS_ELEVATOR = ["129.241.187.153", "129.241.187.38", "129.241.187.48"]
+ADDRESS_ELEVATOR = ["129.241.187.148", "129.241.187.151", "129.241.187.48"]
 PORT_NUMBER = 22290
 STUCK_TIMES_THRESHOLD = 3
-
+COMMAND_ELIMINATE_THRESHOLD = 40
 #---------------------------------------------------------------------------------------------------------
 connection = []
 address = []
@@ -45,7 +46,8 @@ def Listen_To_Components():
 
 		## Synchronize queues (sending)
 		for command in commands_queue:
-			network.Broadcast_Message(connection, "[Lemur] " + "[Queue] " + str(command[0]) + " " + str(command[1]) + " " + command[2])
+			if command[2] == "":
+				network.Broadcast_Message(connection, "[Lemur] " + "[Queue] " + str(command[0]) + " " + str(command[1]) + " " + command[2])
 
 #---------------------------------------------------------------------------------------------------------
 def Connect_To_Components():
@@ -72,7 +74,8 @@ def Connect_To_Components():
 
 					## Synchronize queues (sending)
 					for command in commands_queue:
-						network.Broadcast_Message(connection, "[Lemur] " + "[Queue] " + str(command[0]) + " " + str(command[1]) + " " + command[2])
+						if command[2] == "":
+							network.Broadcast_Message(connection, "[Lemur] " + "[Queue] " + str(command[0]) + " " + str(command[1]) + " " + command[2])
 
 			time.sleep(0.5)
 
@@ -81,14 +84,17 @@ def Eliminate_Component_From_Lists(addr):
 	global connection
 	global address
 
-	component_index = address.index(addr)
+	try:
+		component_index = address.index(addr)
+	except:
+		pass
+	else:
+		connection.pop(component_index)
+		address.pop(component_index)
+		flag_component_alive.pop(component_index)
+		component_status.pop(component_index)
 
-	connection.pop(component_index)
-	address.pop(component_index)
-	flag_component_alive.pop(component_index)
-	component_status.pop(component_index)
-
-	print "Disconnected from: ", addr
+		print "Disconnected from: ", addr
 
 #---------------------------------------------------------------------------------------------------------
 def Watchdog_Component_Alive(conn, addr):
@@ -130,64 +136,77 @@ def Receive_From_Component(conn, addr):
 			message_items = message.split(" ")
 			if message_items[0] == "[Lemur]":
 				# Check if the message has the unique tag for our group
+				
+				try:
+					flag_component_alive[address.index(addr)] = 1
+				except:
+					pass
+				else:
+					if message_items[1] == "[Button]":
+						if len(message_items) == 4:
+							button = int(message_items[2])
+							floor = int(message_items[3])
+							elev_driver.libelev.elev_set_button_lamp(button, floor, 1)
+							if [item for item in commands_queue if item[0] == button and item[1] == floor] == []:
+								commands_queue.append([button, floor, "", -1])
 
-				flag_component_alive[address.index(addr)] = 1
+					if message_items[1] == "[Status]":
+						if len(message_items) == 3:
+							if message_items[2] == "Busy":
+								component_status[address.index(addr)] = 1
+							else:
+								if message_items[2] == "Free":
+									component_status[address.index(addr)] = 0
 
-				if message_items[1] == "[Button]":
-					button = int(message_items[2])
-					floor = int(message_items[3])
-					elev_driver.libelev.elev_set_button_lamp(button, floor, 1)
-					if [item for item in commands_queue if item[0] == button and item[1] == floor] == []:
-						commands_queue.append([button, floor, ""])
+					if message_items[1] == "[Assignment]":
+						if len(message_items) == 5:
+							button = int(message_items[2])
+							floor = int(message_items[3])
+							ip = message_items[4]
+							receive_time = datetime.datetime.now().second
+							for command_item in commands_queue:
+								if command_item[0] == button and command_item[1] == floor:
+									command_item[2] = ip
+									command_item[3] = receive_time
+							if [item for item in commands_queue if item[0] == button and item[1] == floor] == []:
+								commands_queue.append([button, floor, ip, receive_time])
+							if my_address == ip:
+								thread.start_new_thread(Execute_Command, (button, floor, 0))
 
-				if message_items[1] == "[Status]":
-					if message_items[2] == "Busy":
-						component_status[address.index(addr)] = 1
-					else:
-						if message_items[2] == "Free":
-							component_status[address.index(addr)] = 0
+					if message_items[1] == "[Accomplishment]":
+						if len(message_items) == 4:
+							button = int(message_items[2])
+							floor = int(message_items[3])
+							for command in commands_queue:
+								if command[2] == addr and command[0] == button and command[1] == floor:
+									commands_queue.pop(commands_queue.index(command))
+									elev_driver.libelev.elev_set_button_lamp(button, floor, 0)
 
-				if message_items[1] == "[Assignment]":
-					button = int(message_items[2])
-					floor = int(message_items[3])
-					ip = message_items[4]
-					for command_item in commands_queue:
-						if command_item[0] == button and command_item[1] == floor:
-							command_item[2] = ip
-					if [item for item in commands_queue if item[0] == button and item[1] == floor] == []:
-						commands_queue.append([button, floor, ip])
-					if my_address == ip:
-						thread.start_new_thread(Execute_Command, (button, floor, 0))
+					if message_items[1] == "[Queue]":
+						if len(message_items) == 5:
+							button = int(message_items[2])
+							floor = int(message_items[3])
+							ip = message_items[4]
+							flag_same_command_found = 0
+							for command in commands_queue:
+								if command[0] == button and command[1] == floor:
+									flag_same_command_found = 1
+									if ip != "":
+										command[2] = ip
+									break
+							if flag_same_command_found == 0:
+								receive_time = datetime.datetime.now().second
+								commands_queue.append([button, floor, ip, receive_time])
+								elev_driver.libelev.elev_set_button_lamp(button, floor, 1)
 
-				if message_items[1] == "[Accomplishment]":
-					button = int(message_items[2])
-					floor = int(message_items[3])
-					for command in commands_queue:
-						if command[2] == addr and command[0] == button and command[1] == floor:
-							commands_queue.pop(commands_queue.index(command))
-							elev_driver.libelev.elev_set_button_lamp(button, floor, 0)
-
-				if message_items[1] == "[Queue]":
-					button = int(message_items[2])
-					floor = int(message_items[3])
-					ip = message_items[4]
-					flag_same_command_found = 0
-					for command in commands_queue:
-						if command[0] == button and command[1] == floor:
-							flag_same_command_found = 1
-							if ip != "":
-								command[2] = ip
-							break
-					if flag_same_command_found == 0:
-						commands_queue.append([button, floor, ip])
-
-				if message_items[1] == "[Stuck]":
-					button = int(message_items[2])
-					floor = int(message_items[3])
-					for command in commands_queue:
-						if command[2] == addr and command[1] == floor:
-							commands_queue.pop(commands_queue.index(command)) 
-					commands_queue.append([button, floor, ""])
+					if message_items[1] == "[Stuck]":
+						if len(message_items) == 4:
+							button = int(message_items[2])
+							floor = int(message_items[3])
+							for command in commands_queue:
+								if command[2] == addr and command[1] == floor:
+									command[2] = ""
+									command[3] = -1
 									
 #---------------------------------------------------------------------------------------------------------
 def Assign_Component():
@@ -207,6 +226,8 @@ def Assign_Component():
 						flag_free_component = 1
 						my_status = 1
 						command[2] = my_address
+						receive_time = datetime.datetime.now().second
+						command[3] = receive_time
 						network.Broadcast_Message(connection, "[Lemur] " + "[Assignment] " + str(command[0]) + " " + str(command[1]) + " " + my_address)
 						thread.start_new_thread(Execute_Command, (command[0], command[1], 0))
 					else:
@@ -220,8 +241,22 @@ def Assign_Component():
 							flag_free_component = 1
 							component_status[free_component_index] = 1
 							command[2] = address[free_component_index]
+							receive_time = datetime.datetime.now().second
+							command[3] = receive_time
 							network.Broadcast_Message(connection, "[Lemur] " + "[Assignment] " + str(command[0]) + " " + str(command[1]) + " " + address[free_component_index])
 						time.sleep(0.1)
+			else:
+				current_time = datetime.datetime.now().second
+				difference_time = current_time - command[3]
+				if difference_time < 0:
+					difference_time = difference_time + 60
+				if difference_time >= elev_driver.ELEVATOR_STUCK_THRESHOLD:
+					# Elevator stuck
+					if command[2] != my_address:
+						network.Broadcast_Message(connection, "[Lemur] " + "[Stuck] " + str(command[0]) + " " + str(command[1]))
+						command[2] = ""
+						command[3] = -1
+				time.sleep(0.1)
 
 	flag_assign_component_thread_created = 0
 
@@ -243,11 +278,11 @@ def Execute_Command(button, floor, internal):
 			print my_address, "is STUCK for the ", my_stuck_times, " time"
 
 			network.Broadcast_Message(connection, "[Lemur] " + "[Stuck] " + str(button) + " " + str(floor))
-			commands_queue.append([button, floor, ""])
 
 			for command in commands_queue:
 				if command[2] == my_address and command[1] == floor:
-					commands_queue.pop(commands_queue.index(command))
+					command[2] = ""
+					command[3] = -1					
 
 			elev_driver.libelev.elev_set_motor_direction(elev_driver.ELEV_MOTOR_DIRECTION['STOP'])
 
@@ -280,7 +315,6 @@ def Execute_Command(button, floor, internal):
 #---------------------------------------------------------------------------------------------------------
 def Send_Status():
 	while True:
-		#network.Broadcast_Message(connection, "[Lemur] [Alive]")
 		if my_status == 0:
 			network.Broadcast_Message(connection, "[Lemur] " + "[Status] " + "Free")
 		else:
@@ -315,7 +349,7 @@ while True:
 		else:
 			network.Broadcast_Message(connection, "[Lemur] " + "[Button] " + str(button) + " " + str(floor))
 			if [item for item in commands_queue if item[0] == button and item[1] == floor] == []:
-				commands_queue.append([button, floor, ""])
+				commands_queue.append([button, floor, "", -1])
 
 	if flag_master == 1:
 		# Master part
@@ -329,6 +363,15 @@ while True:
 		# Slave part
 		if old_flag_master != flag_master:
 			print "I am a Slave!"
+
+		current_time = datetime.datetime.now().second
+		for command in commands_queue:
+			if command[2] != "":
+				difference_time = current_time - command[3]
+				if difference_time < 0:
+					difference_time = difference_time + 60
+				if difference_time >= COMMAND_ELIMINATE_THRESHOLD:
+					commands_queue.pop(commands_queue.index(command))
 			
 	print "Commands: ", commands_queue
 
