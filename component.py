@@ -5,7 +5,7 @@ import network
 import elev_driver
 
 #---------------------------------------------------------------------------------------------------------
-ADDRESS_ELEVATOR = ["129.241.187.148", "129.241.187.38", "129.241.187.48"]
+ADDRESS_ELEVATOR = ["129.241.187.148", "129.241.187.151", "129.241.187.48"]
 PORT_NUMBER = 22290
 STUCK_TIMES_THRESHOLD = 3
 COMMAND_ELIMINATE_THRESHOLD = 40
