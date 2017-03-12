@@ -15,6 +15,7 @@ def Create_Socket(ip, port):
 #----------------------------------------------------------------------------------
 def Bind_Socket(ip, port):
 	conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+	conn.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 	conn.bind((ip, port))
 
 	return conn
