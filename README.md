@@ -1,5 +1,5 @@
 # Lemur_Project
-TTK4145 - Real-Time Programming - Elevator Project
+<h3> TTK4145 - Real-Time Programming - Elevator Project <h3>
 
 * The software controls *N* elevators working in parallel across *M* floors (by default set to *3* elevators and *4* floors)
 * A computer connected to an elevator is called further on 'Component'
